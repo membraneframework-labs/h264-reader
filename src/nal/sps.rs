@@ -356,7 +356,7 @@ pub struct ChromaInfo {
     pub bit_depth_luma_minus8: u8,
     pub bit_depth_chroma_minus8: u8,
     pub qpprime_y_zero_transform_bypass_flag: bool,
-    pub scaling_matrix: SeqScalingMatrix,
+    pub scaling_matrix: Option<SeqScalingMatrix>,
 }
 impl ChromaInfo {
     pub fn read<R: BitRead>(r: &mut R, profile_idc: ProfileIdc) -> Result<ChromaInfo, SpsError> {
@@ -390,12 +390,14 @@ impl ChromaInfo {
     fn read_scaling_matrix<R: BitRead>(
         r: &mut R,
         chroma_format_idc: u32,
-    ) -> Result<SeqScalingMatrix, SpsError> {
+    ) -> Result<Option<SeqScalingMatrix>, SpsError> {
         let scaling_matrix_present_flag = r.read_bool("scaling_matrix_present_flag")?;
         if scaling_matrix_present_flag {
-            SeqScalingMatrix::read(r, chroma_format_idc).map_err(SpsError::ScalingMatrix)
+            Ok(Some(
+                SeqScalingMatrix::read(r, chroma_format_idc).map_err(SpsError::ScalingMatrix)?,
+            ))
         } else {
-            Ok(SeqScalingMatrix::default())
+            Ok(None)
         }
     }
 }
@@ -1414,6 +1416,7 @@ mod test {
             seq_parameter_set_id: SeqParamSetId::from_u32(0).unwrap(),
             chroma_info: ChromaInfo{
                 chroma_format: ChromaFormat::YUV420,
+                scaling_matrix: Some(SeqScalingMatrix {}),
                 ..ChromaInfo::default()
             },
             /*seq_scaling_list: Some(SeqScalingList{
